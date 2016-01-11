@@ -124,7 +124,7 @@ public class ContactList extends JPanel implements ActionListener,
 		btnPanel.add(boxToggle);
 		btnConnect = new JButton();
 		try {
-			Image img = ImageIO.read(getClass().getResource(
+			Image img = ImageIO.read(getClass().getClassLoader().getResource(
 					"img/solderBridgeIcon.png"));
 			btnConnect.setIcon(new ImageIcon(img));
 			btnConnect.setBackground(Color.WHITE);
@@ -135,7 +135,7 @@ public class ContactList extends JPanel implements ActionListener,
 		btnConnect.addActionListener(this);
 		btnDelete = new JButton();
 		try {
-			Image img = ImageIO.read(getClass().getResource(
+			Image img = ImageIO.read(getClass().getClassLoader().getResource(
 					"img/trashcanIcon.png"));
 			btnDelete.setIcon(new ImageIcon(img));
 			btnDelete.setBackground(Color.WHITE);

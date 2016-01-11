@@ -514,12 +514,12 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 	@Override
 	public void windowClosing(WindowEvent e) {
 		System.out.println("in window closing");
-		//if (e.getWindow().equals(ChatWindow.getWindows())) {
-			//Frame[] frames = ChatWindow.getFrames();
-			//System.out.println(frames.length);
-			//for (Frame f : frames) {
-			//	f.dispose();
-			//}
+		if (e.getWindow().equals(ChatWindow.getWindows())) {
+			Frame[] frames = ChatWindow.getFrames();
+			System.out.println(frames.length);
+			for (Frame f : frames) {
+				f.dispose();
+			}
 			System.out.println("before server socket is closed");
 			if (!serverSocket.isClosed()) {
 				try {
@@ -530,7 +530,7 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 					e1.printStackTrace();
 				}
 			}
-		//}
+		}
 
 	}
 
