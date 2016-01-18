@@ -3,88 +3,43 @@ package view;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.HeadlessException;
-import java.awt.Insets;
 import java.awt.Point;
-import java.awt.TextArea;
-import java.awt.TrayIcon;
-import java.awt.TrayIcon.MessageType;
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.Inet4Address;
+import java.net.DatagramSocket;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.Date;
-import java.util.Enumeration;
-import java.util.TreeMap;
-import java.util.Vector;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
-
 import javax.swing.*;
-
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
-
-import javax.swing.JPanel;
-
-import java.awt.Component;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.BorderLayout;
-
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
-import javax.swing.JScrollPane;
-import javax.swing.JScrollBar;
 import javax.swing.JLabel;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
-import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.plaf.ColorUIResource;
-import javax.swing.plaf.ComponentUI;
-import javax.swing.plaf.FontUIResource;
-import javax.swing.plaf.ScrollBarUI;
-import javax.swing.plaf.synth.Region;
-import javax.swing.plaf.synth.SynthScrollBarUI;
-
-import prefobj.PrefObj;
-
+import server.BridgeServer;
 import com.jhlabs.awt.ParagraphLayout;
 
-import java.awt.GridLayout;
-
-public class ChatRoom extends JFrame implements ActionListener, WindowListener {
-	private ServerSocket serverSocket;
+public class ChatRoom extends WindowAdapter implements ActionListener {
+	/**
+	 * default serial id.
+	 */
+	private static final long serialVersionUID = 1L;
 	private static JFrame mainFrame;
 	private JMenuBar menuBar;
 	private JButton btnSubmitMyInfo;
@@ -96,8 +51,6 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 	private JMenuItem mntmInit;
 	private boolean isFirstLaunch = false;
 	private JMenuItem mntmInfo;
-	private boolean isServerSocketActive = false;
-	private ServerSocket serverListening;
 
 	/**
 	 * Launch the application.
@@ -120,75 +73,6 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		});
 	}
 
-	private class ServerSocketThread implements Runnable {
-		int port;
-
-		public ServerSocketThread(int port) {
-			this.port = port;
-		}
-
-		@Override
-		public void run() {
-			try {
-				if (isServerSocketActive == false) {
-					serverSocket = new ServerSocket(port);
-				}
-			} catch (IOException e) {
-				System.out.println("in IOException");
-				e.printStackTrace();
-			}
-			while (true) {
-				boolean knownContact = false;
-				ActivityPanel.addToActivityWin("Server is waiting for connection on port" + port);
-				Socket socket = null;
-				try {
-					socket = serverSocket.accept();
-					TreeMap contacts = ContactList.getMap();
-					String[] userNames = ContactList.getList();
-					if (userNames != null) {
-						for (int i = 0; i < userNames.length; i++) {
-							Contact temp = (Contact) contacts.get(userNames[i]);
-							ActivityPanel.addToActivityWin("Server is attempting to connect to: " + socket.getInetAddress().getHostAddress());
-							System.out.println();
-							if (temp.getPublicIP().equals(socket.getInetAddress().getHostAddress())) {
-								Thread chatThread = new Thread(new ChatWindow(socket, temp.getUserName()));
-								chatThread.start();
-								knownContact = true;
-								break;
-							}
-						}
-					}
-					if (knownContact == false) {
-						Object mon = new Object();
-						MSGWindow alert = new MSGWindow(
-								"An unknown user is attempting to connect to you, would you like to accept?",
-								SwingConstants.CENTER, true, mon);
-						Thread alertThread = new Thread(alert);
-						alertThread.start();
-						try {
-							synchronized (mon) {
-								mon.wait();
-							}
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-						if (alert.getAnswer() == true) {
-							Thread chatThread = new Thread(new ChatWindow(socket, "Unknown"));
-							ActivityPanel.addToActivityWin("Incoming connection recieved");
-							chatThread.start();
-						} else {
-							socket.close();
-						}
-					}
-				} catch (IOException e) {
-					return;
-				} catch (Exception e) {
-					ActivityPanel.addToActivityWin(e.getMessage());
-				}
-			}
-		}
-	}
-
 	/**
 	 * Create the application.
 	 */
@@ -206,7 +90,9 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			createComponenets();
 			SwingUtilities.updateComponentTreeUI(mainFrame);
 			if (isFirstLaunch == true) {
-				ActivityPanel.addToActivityWin("Welcome! \n Be sure to initialize profile fields in Setup Menu");
+				ActivityPanel.addToActivityWin("Welcome! \nBe sure to initialize "
+						+ "profile fields in Setup Menu"
+						+ "\nSetup port forwarding in router config settings");
 			} else {
 				try {
 					String[] childNames = ChatRoom.getUserProfilePrefs().keys();
@@ -220,13 +106,11 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 						if (temp.checkFields() == false) {
 							return;
 						} else {
-							System.out.println(ChatRoom.getUserProfilePrefs().get("port", "null"));
-
-							if (serverListening(Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null"))))
-								isServerSocketActive = true;
-							Thread t = new Thread(new ServerSocketThread(
-									Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null"))));
-							t.start();
+								if(available(Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null")))) {
+									Thread t = new Thread(new BridgeServer(
+											Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null"))));
+									t.start();
+								}
 						}
 					}
 				} catch (BackingStoreException e) {
@@ -242,14 +126,35 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		}
 	}
 
-	public boolean serverListening(int port) {
-		try {
-			serverSocket = new ServerSocket(port);
-			return true;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+	public static boolean available(int port) {
+	    if (port < 1500 || port > 56653) {
+	        throw new IllegalArgumentException("Invalid start port: " + port);
+	    }
+
+	    ServerSocket ss = null;
+	    DatagramSocket ds = null;
+	    try {
+	        ss = new ServerSocket(port);
+	        ss.setReuseAddress(true);
+	        ds = new DatagramSocket(port);
+	        ds.setReuseAddress(true);
+	        return true;
+	    } catch (IOException e) {
+	    } finally {
+	        if (ds != null) {
+	            ds.close();
+	        }
+
+	        if (ss != null) {
+	            try {
+	                ss.close();
+	            } catch (IOException e) {
+	                /* should not be thrown */
+	            }
+	        }
+	    }
+
+	    return false;
 	}
 
 	private void createComponenets() {
@@ -279,10 +184,6 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			mainFrame.getContentPane().add(tabbedPane, BorderLayout.CENTER);
 			AddTab add = new AddTab();
 			tabbedPane.addTab("Add Contact", add);
-			/*
-			 * CreateLocalTab addNewLocal = new CreateLocalTab();
-			 * tabbedPane.addTab("Add Local Contact", addNewLocal);
-			 */
 			ActivityPanel consolePanel = new ActivityPanel(new Date());
 			consolePanel.setPreferredSize(new Dimension(245, mainFrame.getHeight()));
 			mainFrame.getContentPane().add(consolePanel, BorderLayout.EAST);
@@ -319,24 +220,18 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 
 	private void getPrefs() {
 
-		try {// simulates first startup remove when ready to deploy
+		/*try {// simulates first startup remove when ready to deploy
 			prefs.node("StartUp").removeNode();
 			prefs.node("Contacts").removeNode();
 			prefs.node("UserProfile").removeNode();
-			System.out.println(prefs.nodeExists("StartUp"));
-			System.out.println(prefs.nodeExists("Contacts"));
 		} catch (BackingStoreException e) {
 			e.printStackTrace();
-		}
-
+		}*/
 		if (prefs.node("StartUp").getBoolean("isFirstLaunch", true) == true) {
 			prefs.node("StartUp").putBoolean("isFirstLaunch", false);
 			prefs.node("Contacts");
 			prefs.node("UserProfile");
-			System.out.println(prefs.node("Contacts"));
-			System.out.println(prefs.node("StartUp"));
 			isFirstLaunch = true;
-			System.out.println(prefs.node("StartUp").getBoolean("isFirstLaunch", true));
 		}
 	}
 
@@ -366,12 +261,11 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			txtLocalIP.setText(prefs.node("UserProfile").get("localIP", ""));
 			txtPort.setText(prefs.node("UserProfile").get("port", ""));
 
-			// try {
-			// txtPublicIP.setText(getIP());
-			// } catch (Exception e) {
-			// e.printStackTrace();
-			// }
-
+			 try {
+			 txtPublicIP.setText(getIP());
+			 } catch (Exception e) {
+			 ActivityPanel.addToActivityWin("Please connect to Internet if attempting to remote chat");
+			 }
 			add(lblUserName, ParagraphLayout.NEW_PARAGRAPH);
 			add(txtUserName);
 			add(lblFName, ParagraphLayout.NEW_PARAGRAPH);
@@ -412,9 +306,11 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 					myLName = lName;
 					myLocalIP = localIP;
 					myPublicIP = publicIP;
-					myPort = port;
-					Thread t = new Thread(new ServerSocketThread(Integer.parseInt(port)));
-					t.start();
+					myPort = port;if(available(Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null")))) {
+						Thread t = new Thread(new BridgeServer(
+								Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null"))));
+						t.start();
+					}
 					this.dispose();
 					return;
 				} else
@@ -449,8 +345,7 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			String ip = in.readLine();
 			return ip;
 		} catch (Exception e) {
-			new MSGWindow("Error", "Check Internet connection!", SwingConstants.CENTER)
-					.setLocationRelativeTo(mainFrame);
+			ActivityPanel.addToActivityWin("Check Internet connection!");
 			return "";
 		} finally {
 			if (in != null) {
@@ -479,56 +374,12 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 	}
 
 	@Override
-	public void windowActivated(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowClosed(WindowEvent e) {
-		System.out.println("in window closed");
-	}
-
-	@Override
 	public void windowClosing(WindowEvent e) {
 		Frame[] frames = ChatWindow.getFrames();
 		for (Frame f : frames) {
 			f.dispose();
 		}
-		System.out.println("before server socket is closed");
-		if (serverSocket != null) {
-			try {
-				ActivityPanel.addToActivityWin("closing socket at port " + myPort);
-				serverSocket.close();
-				System.exit(0);
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-		} else {
-			System.exit(0);
-		}
+		System.exit(0);
 	}
-
-	@Override
-	public void windowDeactivated(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowDeiconified(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowIconified(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowOpened(WindowEvent arg0) {
-
-	}
+		
 }
