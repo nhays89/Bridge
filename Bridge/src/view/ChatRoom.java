@@ -379,6 +379,7 @@ public class ChatRoom extends WindowAdapter implements ActionListener {
 		for (Frame f : frames) {
 			f.dispose();
 		}
+		BridgeServer.closeStream();
 		System.exit(0);
 	}
 		

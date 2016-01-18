@@ -1,7 +1,5 @@
 package server;
 
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -15,24 +13,24 @@ import view.Contact;
 import view.ContactList;
 import view.MSGWindow;
 
-public class BridgeServer extends WindowAdapter implements Runnable {
-	int port;
-	ServerSocket serverSocket;
+public class BridgeServer implements Runnable {
+	private static int PORT;
+	private static ServerSocket serverSocket;
 	public BridgeServer(int port) {
-		this.port = port;
+		PORT = port;
 	}
 
 	@Override
 	public void run() {
 		try {
-			serverSocket = new ServerSocket(port);
+			serverSocket = new ServerSocket(PORT);
 		} catch (IOException e) {
 			System.out.println("in IOException");
 			e.printStackTrace();
 		}
 		while (true) {
 			boolean knownContact = false;
-			ActivityPanel.addToActivityWin("Server is waiting for connection on port" + port);
+			ActivityPanel.addToActivityWin("Server is waiting for connection on port" + PORT);
 			Socket socket = null;
 			try {
 				socket = serverSocket.accept();
@@ -80,12 +78,10 @@ public class BridgeServer extends WindowAdapter implements Runnable {
 			}
 		}
 	}
-
-	@Override
-	public void windowClosing(WindowEvent e) {
+	public static void closeStream() {
 		if (serverSocket != null) {
 			try {
-				ActivityPanel.addToActivityWin("closing socket at port " + port);
+				ActivityPanel.addToActivityWin("closing socket at port " + PORT);
 				serverSocket.close();
 			} catch (IOException e1) {
 				e1.printStackTrace();
