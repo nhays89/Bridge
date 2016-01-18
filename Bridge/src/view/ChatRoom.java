@@ -1,4 +1,5 @@
 package view;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
@@ -74,6 +75,7 @@ import javax.swing.plaf.ComponentUI;
 import javax.swing.plaf.FontUIResource;
 import javax.swing.plaf.ScrollBarUI;
 import javax.swing.plaf.synth.Region;
+import javax.swing.plaf.synth.SynthScrollBarUI;
 
 import prefobj.PrefObj;
 
@@ -86,19 +88,17 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 	private static JFrame mainFrame;
 	private JMenuBar menuBar;
 	private JButton btnSubmitMyInfo;
-	private JTextField txtUserName, txtFName, txtLName, txtPublicIP,
-			txtLocalIP, txtPort;
-	private String userName, fName, lName, localIP, publicIP, port;
-	public JLabel lblUserName, lblFName, lblLName, lblPublicIP, lblLocalIP,
-			lblPort;
-	public static Preferences prefs = Preferences
-			.userNodeForPackage(ChatRoom.class);
+	private JTextField txtUserName, txtFName, txtLName, txtPublicIP, txtLocalIP, txtPort;
+	private String myUserName, myFName, myLName, myLocalIP, myPublicIP, myPort;
+	public JLabel lblUserName, lblFName, lblLName, lblPublicIP, lblLocalIP, lblPort;
+	public static Preferences prefs = Preferences.userNodeForPackage(ChatRoom.class);
 	private JMenu mnSetup;
 	private JMenuItem mntmInit;
 	private boolean isFirstLaunch = false;
 	private JMenuItem mntmInfo;
 	private boolean isServerSocketActive = false;
 	private ServerSocket serverListening;
+
 	/**
 	 * Launch the application.
 	 */
@@ -139,10 +139,7 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			}
 			while (true) {
 				boolean knownContact = false;
-				 ActivityPanel
-				 .addToActivityWin("Server is waiting for connection on port"
-				 + port);
-				System.out.println("Server is waiting for connection");
+				ActivityPanel.addToActivityWin("Server is waiting for connection on port" + port);
 				Socket socket = null;
 				try {
 					socket = serverSocket.accept();
@@ -151,12 +148,10 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 					if (userNames != null) {
 						for (int i = 0; i < userNames.length; i++) {
 							Contact temp = (Contact) contacts.get(userNames[i]);
-							System.out.println(socket.getInetAddress()
-									.getHostAddress());
-							if (temp.getPublicIP().equals(
-									socket.getInetAddress().getHostAddress())) {
-								Thread chatThread = new Thread(new ChatWindow(
-										socket, temp.getUserName()));
+							ActivityPanel.addToActivityWin("Server is attempting to connect to: " + socket.getInetAddress().getHostAddress());
+							System.out.println();
+							if (temp.getPublicIP().equals(socket.getInetAddress().getHostAddress())) {
+								Thread chatThread = new Thread(new ChatWindow(socket, temp.getUserName()));
 								chatThread.start();
 								knownContact = true;
 								break;
@@ -178,10 +173,8 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 							e.printStackTrace();
 						}
 						if (alert.getAnswer() == true) {
-							Thread chatThread = new Thread(new ChatWindow(
-									socket, "Unknown"));
-							ActivityPanel
-									.addToActivityWin("Incoming connection recieved");
+							Thread chatThread = new Thread(new ChatWindow(socket, "Unknown"));
+							ActivityPanel.addToActivityWin("Incoming connection recieved");
 							chatThread.start();
 						} else {
 							socket.close();
@@ -189,9 +182,8 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 					}
 				} catch (IOException e) {
 					return;
-				} catch (Exception e){
-					ActivityPanel
-					.addToActivityWin(e.getMessage());
+				} catch (Exception e) {
+					ActivityPanel.addToActivityWin(e.getMessage());
 				}
 			}
 		}
@@ -215,45 +207,31 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			SwingUtilities.updateComponentTreeUI(mainFrame);
 			if (isFirstLaunch == true) {
 				ActivityPanel.addToActivityWin("Welcome! \n Be sure to initialize profile fields in Setup Menu");
-						
-
 			} else {
 				try {
 					String[] childNames = ChatRoom.getUserProfilePrefs().keys();
 					if (childNames.length > 0) {
-						Contact temp = new Contact(ChatRoom
-								.getUserProfilePrefs().get(childNames[0],
-										"null"), ChatRoom.getUserProfilePrefs()
-								.get(childNames[1], "null"), ChatRoom
-								.getUserProfilePrefs().get(childNames[2],
-										"null"), ChatRoom.getUserProfilePrefs()
-								.get(childNames[3], "null"), ChatRoom
-								.getUserProfilePrefs().get(childNames[4],
-										"null"), ChatRoom.getUserProfilePrefs()
-								.get(childNames[5], "null"));
+						Contact temp = new Contact(ChatRoom.getUserProfilePrefs().get(childNames[0], "null"),
+								ChatRoom.getUserProfilePrefs().get(childNames[1], "null"),
+								ChatRoom.getUserProfilePrefs().get(childNames[2], "null"),
+								ChatRoom.getUserProfilePrefs().get(childNames[3], "null"),
+								ChatRoom.getUserProfilePrefs().get(childNames[4], "null"),
+								ChatRoom.getUserProfilePrefs().get(childNames[5], "null"));
 						if (temp.checkFields() == false) {
 							return;
 						} else {
-			
-					System.out.println(ChatRoom
-											.getUserProfilePrefs().get(
-													"port", "null"));
-							boolean isListening = serverListening(
-									"192.168.0.1", Integer
-											.parseInt(ChatRoom
-													.getUserProfilePrefs().get(
-															"port", "null")));
-							if(isListening == true) isServerSocketActive = true;
+							System.out.println(ChatRoom.getUserProfilePrefs().get("port", "null"));
+
+							if (serverListening(Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null"))))
+								isServerSocketActive = true;
 							Thread t = new Thread(new ServerSocketThread(
-									Integer.parseInt(ChatRoom
-											.getUserProfilePrefs().get("port",
-													"null"))));
+									Integer.parseInt(ChatRoom.getUserProfilePrefs().get("port", "null"))));
 							t.start();
 						}
 					}
 				} catch (BackingStoreException e) {
-					ActivityPanel
-							.addToActivityWin("Error: Backing Store Exception \n unable to connect to users preferences");
+					ActivityPanel.addToActivityWin(
+							"Error: Backing Store Exception \n unable to connect to users preferences");
 					e.printStackTrace();
 				}
 			}
@@ -264,14 +242,11 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		}
 	}
 
-	public boolean serverListening(String host, int port) {
-		try{
-			System.out.println("in server Listening");
+	public boolean serverListening(int port) {
+		try {
 			serverSocket = new ServerSocket(port);
-			System.out.println("serversocket created");
 			return true;
-		} catch (Exception e){
-			System.out.println("in server Listening exception thrown");
+		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
 		}
@@ -281,12 +256,10 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		try {
 			mainFrame = new JFrame("Test");
 			mainFrame.getContentPane().setBackground(Color.black);
-			Point p = GraphicsEnvironment.getLocalGraphicsEnvironment()
-					.getCenterPoint();
+			Point p = GraphicsEnvironment.getLocalGraphicsEnvironment().getCenterPoint();
 			mainFrame.setLocation(p.x - p.x / 2, p.y - p.y / 2);
 			mainFrame.setTitle("Bridge");
-			mainFrame.getContentPane()
-					.setPreferredSize(new Dimension(900, 400));
+			mainFrame.getContentPane().setPreferredSize(new Dimension(900, 400));
 			mainFrame.pack();
 			menuBar = new JMenuBar();
 			mainFrame.setJMenuBar(menuBar);
@@ -311,8 +284,7 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			 * tabbedPane.addTab("Add Local Contact", addNewLocal);
 			 */
 			ActivityPanel consolePanel = new ActivityPanel(new Date());
-			consolePanel.setPreferredSize(new Dimension(245, mainFrame
-					.getHeight()));
+			consolePanel.setPreferredSize(new Dimension(245, mainFrame.getHeight()));
 			mainFrame.getContentPane().add(consolePanel, BorderLayout.EAST);
 			mainFrame.setVisible(true);
 			mainFrame.addWindowListener(this);
@@ -325,11 +297,9 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		UIManager.put("MenuItem.background", Color.black);
 		UIManager.put("nimbusBase", Color.black);
 		UIManager.put("nimbusBlueGrey", Color.black);
-		UIManager.put("MenuItem[Enabled].textForeground", new Color(232, 232,
-				232));
+		UIManager.put("MenuItem[Enabled].textForeground", new Color(232, 232, 232));
 		UIManager.put("Menu[Enabled].textForeground", new Color(232, 232, 232));
-		UIManager.put("MenuBar:Menu[Disabled].textForeground", new Color(232,
-				232, 232));
+		UIManager.put("MenuBar:Menu[Disabled].textForeground", new Color(232, 232, 232));
 		UIManager.put("Menu:MenuItemAccelerator.contentMargins", Color.black);
 		UIManager.put("Menu[Enabled+Selected].textForeground", Color.black);
 		UIManager.put("List.background", Color.black);
@@ -341,23 +311,24 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		UIManager.put("TextField.background", new Color(232, 232, 232));
 		UIManager.put("TextArea.foreground", Color.WHITE);
 		UIManager.put("TextArea.background", Color.black);
-		UIManager.getLookAndFeelDefaults().put("defaultFont",
-				new Font("Open Sans ExtraBold", Font.BOLD, 12));
+		UIManager.getLookAndFeelDefaults().put("defaultFont", new Font("Open Sans ExtraBold", Font.BOLD, 12));
 		UIManager.put("OptionPane.disabled", Color.black);
 		UIManager.put("OptionPane.background", Color.BLACK);
 		UIManager.put("OptionPane.foreground", Color.BLACK);
 	}
 
 	private void getPrefs() {
-		/*
-		 * try {// simulates first startup remove when ready to deploy
-		 * prefs.node("StartUp").removeNode();
-		 * prefs.node("Contacts").removeNode();
-		 * prefs.node("UserProfile").removeNode();
-		 * System.out.println(prefs.nodeExists("StartUp"));
-		 * System.out.println(prefs.nodeExists("Contacts")); } catch
-		 * (BackingStoreException e) { e.printStackTrace(); }
-		 */
+
+		try {// simulates first startup remove when ready to deploy
+			prefs.node("StartUp").removeNode();
+			prefs.node("Contacts").removeNode();
+			prefs.node("UserProfile").removeNode();
+			System.out.println(prefs.nodeExists("StartUp"));
+			System.out.println(prefs.nodeExists("Contacts"));
+		} catch (BackingStoreException e) {
+			e.printStackTrace();
+		}
+
 		if (prefs.node("StartUp").getBoolean("isFirstLaunch", true) == true) {
 			prefs.node("StartUp").putBoolean("isFirstLaunch", false);
 			prefs.node("Contacts");
@@ -365,8 +336,7 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			System.out.println(prefs.node("Contacts"));
 			System.out.println(prefs.node("StartUp"));
 			isFirstLaunch = true;
-			System.out.println(prefs.node("StartUp").getBoolean(
-					"isFirstLaunch", true));
+			System.out.println(prefs.node("StartUp").getBoolean("isFirstLaunch", true));
 		}
 	}
 
@@ -396,11 +366,11 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 			txtLocalIP.setText(prefs.node("UserProfile").get("localIP", ""));
 			txtPort.setText(prefs.node("UserProfile").get("port", ""));
 
-			//try {
-				//txtPublicIP.setText(getIP());
-			//} catch (Exception e) {
-				//e.printStackTrace();
-			//}
+			// try {
+			// txtPublicIP.setText(getIP());
+			// } catch (Exception e) {
+			// e.printStackTrace();
+			// }
 
 			add(lblUserName, ParagraphLayout.NEW_PARAGRAPH);
 			add(txtUserName);
@@ -424,41 +394,50 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			if (e.getSource().equals(btnSubmitMyInfo)) {
-				userName = txtUserName.getText();
-				fName = txtFName.getText();
-				lName = txtLName.getText();
-				publicIP = txtPublicIP.getText();
-				localIP = txtLocalIP.getText();
-				port = txtPort.getText();
-				if (checkFieldValidity(userName, fName, lName, localIP,
-						publicIP, port) == true) {
-					prefs.node("UserProfile").put("userName",
-							txtUserName.getText());
-					prefs.node("UserProfile").put("fName", txtFName.getText());
-					prefs.node("UserProfile").put("lName", txtLName.getText());
-					prefs.node("UserProfile").put("localIP",
-							txtLocalIP.getText());
-					prefs.node("UserProfile").put("publicIP",
-							txtPublicIP.getText());
+				String userName = txtUserName.getText();
+				String fName = txtFName.getText();
+				String lName = txtLName.getText();
+				String publicIP = txtPublicIP.getText();
+				String localIP = txtLocalIP.getText();
+				String port = txtPort.getText();
+				if (checkFieldValidity(userName, fName, lName, localIP, publicIP, port)) {
+					prefs.node("UserProfile").put("userName", userName);
+					prefs.node("UserProfile").put("fName", fName);
+					prefs.node("UserProfile").put("lName", lName);
+					prefs.node("UserProfile").put("localIP", publicIP);
+					prefs.node("UserProfile").put("publicIP", localIP);
 					prefs.node("UserProfile").put("port", port);
-					Thread t = new Thread(new ServerSocketThread(
-							Integer.parseInt(port)));
+					myUserName = userName;
+					myFName = fName;
+					myLName = lName;
+					myLocalIP = localIP;
+					myPublicIP = publicIP;
+					myPort = port;
+					Thread t = new Thread(new ServerSocketThread(Integer.parseInt(port)));
 					t.start();
+					this.dispose();
 					return;
 				} else
-					return;
+					ActivityPanel.addToActivityWin("invalid argument");
+				this.dispose();
+				return;
 			}
 		}
 
-		public boolean checkFieldValidity(String userName, String fName,
-				String lName, String localIP, String publicIP, String port) {
-			Contact user = new Contact(userName, fName, lName, localIP,
-					publicIP, port);
-			System.out.println("in check field validity");
-			if (user.checkFields() == false) {
-				return false;
+		public boolean checkFieldValidity(String userName, String fName, String lName, String localIP, String publicIP,
+				String port) {
+			boolean isValid = false;
+			Contact user = new Contact(userName, fName, lName, localIP, publicIP, port);
+			if (user.checkFields()) {
+				if (myPort == null) {
+					isValid = true;
+				} else {
+					if (!myPort.equals(port)) {
+						isValid = true;
+					}
+				}
 			}
-			return true;
+			return isValid;
 		}
 	}
 
@@ -466,13 +445,12 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 		BufferedReader in = null;
 		try {
 			URL whatismyip = new URL("http://checkip.amazonaws.com");
-			in = new BufferedReader(new InputStreamReader(
-					whatismyip.openStream()));
+			in = new BufferedReader(new InputStreamReader(whatismyip.openStream()));
 			String ip = in.readLine();
 			return ip;
 		} catch (Exception e) {
-			new MSGWindow("Error", "Check Internet connection!",
-					SwingConstants.CENTER).setLocationRelativeTo(mainFrame);
+			new MSGWindow("Error", "Check Internet connection!", SwingConstants.CENTER)
+					.setLocationRelativeTo(mainFrame);
 			return "";
 		} finally {
 			if (in != null) {
@@ -513,25 +491,22 @@ public class ChatRoom extends JFrame implements ActionListener, WindowListener {
 
 	@Override
 	public void windowClosing(WindowEvent e) {
-		System.out.println("in window closing");
-		if (e.getWindow().equals(ChatWindow.getWindows())) {
-			Frame[] frames = ChatWindow.getFrames();
-			System.out.println(frames.length);
-			for (Frame f : frames) {
-				f.dispose();
-			}
-			System.out.println("before server socket is closed");
-			if (!serverSocket.isClosed()) {
-				try {
-					System.out.println("ready to close server Socket from window closing");
-					serverSocket.close();
-					System.exit(0);
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
-			}
+		Frame[] frames = ChatWindow.getFrames();
+		for (Frame f : frames) {
+			f.dispose();
 		}
-
+		System.out.println("before server socket is closed");
+		if (serverSocket != null) {
+			try {
+				ActivityPanel.addToActivityWin("closing socket at port " + myPort);
+				serverSocket.close();
+				System.exit(0);
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		} else {
+			System.exit(0);
+		}
 	}
 
 	@Override
