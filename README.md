@@ -1,2 +1,3 @@
 # Bridge
-java chat room implemented with server sockets to accommodate local and remote communication.
+
+![bridge](https://github.com/nhays89/Bridge/blob/master/Bridge/bridge.png)
